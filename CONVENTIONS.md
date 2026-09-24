@@ -59,8 +59,11 @@ maintenance only.
 
 ## Build directories
 
-Every build lands in `build/<platform>/<variant>/`, so a program, or a binding in
-another repo, finds a library by rule instead of reading the build scripts.
+What a build makes lands in `out/<platform>/<variant>/`; its work (the build system's
+cache, objects, generated sources, intermediates) stays in `build/<platform>/<variant>/`.
+So a program, or a binding in another repo, finds a library by rule instead of reading
+the build scripts, `out/` holds nothing but results, and deleting `build/` loses nothing
+a consumer uses.
 
 - **`<platform>` is where the output runs:** `linux`, `macos`, `windows`, `web` (and
   `ios`, `android` when they exist). Not the machine that built it, not the toolchain,
@@ -74,29 +77,43 @@ another repo, finds a library by rule instead of reading the build scripts.
      goes unnamed, except as `release` when there would be no variant at all.
 
   ```
-  build/linux/release     build/linux/debug       build/linux/headless    build/linux/tsan
-  build/macos/release     build/windows/msvc      build/windows/msvc-debug
-  build/windows/mingw     build/windows/mingw-headless
-  build/web/webgl2        build/web/webgl2-nothreads-debug                build/web/webgpu
+  out/linux/release       out/linux/debug         out/linux/headless      out/linux/tsan
+  out/macos/release       out/windows/msvc        out/windows/msvc-debug
+  out/windows/mingw       out/windows/mingw-headless
+  out/web/webgl2          out/web/webgl2-nothreads-debug                  out/web/webgpu
   ```
 - **The library is at the top of its variant directory:** `lib<name>.a`, or `<name>.lib`
   from MSVC. The programs a build makes go beside it; a web build's directory is its
-  site.
+  site, and nothing else goes in it, so it can be served or published as it is.
+- **`build/` mirrors it for the work:** the same variant builds in
+  `build/<platform>/<variant>/`. A CMake preset sets `binaryDir` there and its output
+  directories (`CMAKE_ARCHIVE_OUTPUT_DIRECTORY`, `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, and
+  their per-configuration forms, or a multi-config generator adds `Release/`) to `out/`.
+  A tool's byproducts for a build (check screenshots, size tables, a staged copy to
+  publish, the files a test writes) go in its `build/` directory too, not beside the
+  results.
 - **The path names the build, not the tool.** Anything that makes a given variant
   (a CMake preset, a script that builds the web library with emcc alone) writes the
-  same directory, from the same flags, so a consumer never cares which one ran.
+  same `out/` directory, from the same flags, so a consumer never cares which one ran.
 - **CMake presets are named `<platform>-<variant>`** (`linux-debug`,
-  `web-webgl2-nothreads`) and set `binaryDir` to match. A native platform's presets
-  show only on that host (a `condition` on `${hostSystemName}`); a cross build shows
-  wherever it can run.
+  `web-webgl2-nothreads`). A native platform's presets show only on that host (a
+  `condition` on `${hostSystemName}`); a cross build shows wherever it can run.
 - **MSVC builds use the static C runtime** (`/MT`, `/MTd` for debug): one choice per
   variant, so a consumer never meets a runtime mismatch at link time, and it's the one
   Beef requires.
 - **A consumer names the variant it needs** and finds it at
-  `<repo>/build/<platform>/<variant>/`; if it's missing, it runs that repo's preset of
-  the same name. A binding's own builds follow the same layout.
-- **Everything else under `build/`** (downloaded tools, caches, a Wine prefix) is a
-  directory named for what it holds, and never one of the platform names.
+  `<repo>/out/<platform>/<variant>/`; if it's missing, it runs that repo's preset of
+  the same name. A binding's own builds follow the same layout: its programs and sites
+  in its `out/<platform>/<variant>/`, its intermediates in `build/<platform>/<variant>/`.
+- **A toolchain that fixes its own intermediates directory is the one exception:**
+  BeefBuild always uses `build/<Config>_<Platform>/` (`build/Release_Linux64/`), and
+  links there too. A post-build step copies its results into `out/`, and the repo's
+  BUILDING.md says so.
+- **`build/` holds nothing but `<platform>/<variant>/` directories.** What a machine
+  sets up once and every build shares (downloaded or built tools, a Wine prefix) isn't
+  a build's work: it goes in the per-user cache, `~/.cache/<project>/` (wgrender's is
+  `~/.cache/wgrender/`; `~/Library/Caches` on macOS, `%LOCALAPPDATA%` on Windows),
+  overridable by an environment variable.
 
 ## Vendored dependencies
 
