@@ -195,7 +195,12 @@ the headers.
   through its compiler's reflection, Python through `ast`, another language through its
   own compiler. Matching a program's output, or reading data and config, is fine.
   Where nothing parses it, raise it rather than scan.
+- **A check skipped for want of something says so loudly.** No MSVC, no Wine, no
+  clang, no browser, no virtual display: the tool announces `SKIPPING <what> (<why>)`
+  before it runs anything, and names the skips again where it reports its result. It
+  never passes quietly, or silently, over a check it didn't run, and a step asked for by
+  name that doesn't exist here is refused, not ignored.
 - **One command verifies everything a change touches** (every local preset, the
   bindings, the web in a browser, a real Windows machine when asked), stopping at the
-  first failure, and its pass names every step it skipped for want of a tool, so a pass
-  can't be read as more than it was.
+  first failure, and its pass names every step it skipped, so a pass can't be read as
+  more than it was.
